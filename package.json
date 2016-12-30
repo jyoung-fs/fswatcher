@@ -4,11 +4,27 @@
   "description": "Watches directories and sends notifications on change",
   "main": "index.js",
   "scripts": {
+    "build": "./node_modules/nexe/bin/nexe -i index.js -o fswatcher -t $TMPDIR/nexe",
+    "run": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Jason Young <jyoung@fastspring.com>",
   "license": "ISC",
   "dependencies": {
-    "chokidar": "^1.6.1"
-  }
+    "aws-sdk": "^2.7.20",
+    "chokidar": "^1.6.1",
+    "commander": "^2.9.0",
+    "raven": "git+ssh://git@github.com/jyoung-fs/raven-node.git"
+  },
+  "devDependencies": {
+    "nexe": "^1.1.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jyoung-fs/fswatcher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jyoung-fs/fswatcher/issues"
+  },
+  "homepage": "https://github.com/jyoung-fs/fswatcher#readme"
 }
