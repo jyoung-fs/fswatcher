@@ -116,16 +116,13 @@ function run() {
     };
     cloudwatch.putEvents(params, (err, data) => {
       if (err) sendError('Failed sending to CloudWatch', {error: err, stack: err.stack});
-      else {
-        if (program.verbose) {
-          process.stdout.write(`Successfully sent ${JSON.stringify(detail)} to CloudWatch\n`);
-          process.stdout.write(`Specifically, sent ${JSON.stringify(params)}\n`);
-        }
+      else if (program.verbose) {
+        process.stdout.write(`Successfully sent ${JSON.stringify(detail)} to CloudWatch\n`);
       }
     });
   });
 
-  process.on('SIGTERM', raven.wrap(() => {
+  function shutdown() {
     if (program.verbose) {
       process.stdout.write('Caught signal, shutting down...');
     }
@@ -133,7 +130,10 @@ function run() {
       watcher.close();
     }
     process.exit(0);
-  }));
+  }
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 function sendError(msg, extras) {
@@ -144,7 +144,6 @@ function sendError(msg, extras) {
     config.extra = extras;
   }
   raven.captureException(msg, config);
-  process.stderr.write(`Error: ${msg}, extras: ${JSON.stringify(extras)}\n`);
 }
 
 function onError(err) {
