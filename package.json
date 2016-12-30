@@ -4,7 +4,6 @@
   "description": "Watches directories and sends notifications on change",
   "main": "index.js",
   "scripts": {
-    "build": "./node_modules/nexe/bin/nexe -i index.js -o fswatcher -t $TMPDIR/nexe",
     "run": "node index.js"
   },
   "author": "Jason Young <jyoung@fastspring.com>",
@@ -16,6 +15,7 @@
     "raven": "git+ssh://git@github.com/jyoung-fs/raven-node.git"
   },
   "devDependencies": {
+    "grunt": "^1.0.1",
     "nexe": "^1.1.2"
   },
   "repository": {

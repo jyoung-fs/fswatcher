@@ -12,22 +12,19 @@ const SENTRY_DSN = 'https://dc50f728527148fbbc24e75bfb400bfe:204d3ae41d1849a5ba6
 
 // Sentry support
 const raven = require('raven');
-raven.config(SENTRY_DSN).install((success, err) => {
-  process.stderr.write(err);
+raven.config(SENTRY_DSN, {tags: {
+  server: process.env.SERVER_NAME || 'local',
+  build: process.env.SERVER_BUILD || 'local'
+}}).install((success, err) => {
+  process.stderr.write(`Unexpected error: ${err.toString()}`);
   if (!success) {
-    process.stderr.write(`Failed connecting to Sentry!\n`);
+    process.stderr.write(`Failed sending to Sentry!\n`);
   }
 });
 
-raven.context(function() {
-  // Set context
-  raven.setContext({
-    tags: {
-      server: process.env.SERVER_NAME || 'local',
-      build: process.env.SERVER_BUILD || 'local'
-    }
-  });
+raven.context({}, run, onError);
 
+function run() {
   // CLI Args
   program
     .version('1.0.0')
@@ -89,9 +86,8 @@ raven.context(function() {
     atomic: true // or a custom 'atomicity delay', in milliseconds (default 100)
   };
 
-  const watcher = chokidar.watch(directories, chokidarConfig);
-
-  watcher
+  const watcher = chokidar
+    .watch(directories, chokidarConfig)
     .on('add', path => sendAlert(path, 'added'))
     .on('change', path => sendAlert(path, 'changed'))
     .on('unlink', path => sendAlert(path, 'removed'))
@@ -129,21 +125,29 @@ raven.context(function() {
     });
   });
 
-  function sendError(msg, extras) {
-    const config = {
-      level: 'error'
-    };
-    if (extras) {
-      config.extra = extras;
-    }
-    raven.captureException(new Error(msg), config);
-    process.stderr.write(`Error: ${msg}, extras: ${JSON.stringify(extras)}\n`);
-  }
-
   process.on('SIGTERM', raven.wrap(() => {
+    if (program.verbose) {
+      process.stdout.write('Caught signal, shutting down...');
+    }
     if (watcher) {
       watcher.close();
     }
     process.exit(0);
   }));
-});
+}
+
+function sendError(msg, extras) {
+  const config = {
+    level: 'error'
+  };
+  if (extras) {
+    config.extra = extras;
+  }
+  raven.captureException(msg, config);
+  process.stderr.write(`Error: ${msg}, extras: ${JSON.stringify(extras)}\n`);
+}
+
+function onError(err) {
+  process.stderr.write(err.toString() + '\n');
+  raven.captureException(err);
+}
