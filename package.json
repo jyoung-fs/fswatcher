@@ -1,0 +1,14 @@
+{
+  "name": "fswatcher",
+  "version": "1.0.0",
+  "description": "Watches directories and sends notifications on change",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jason Young <jyoung@fastspring.com>",
+  "license": "ISC",
+  "dependencies": {
+    "chokidar": "^1.6.1"
+  }
+}
