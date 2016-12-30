@@ -4,15 +4,20 @@ const path = require('path');
 const program = require('commander');
 const chokidar = require('chokidar');
 const AWS = require('aws-sdk');
-AWS.config.region = 'us-west-2';
+const region = process.env.PROD ? 'us-east-1' : 'us-west-2';
+AWS.config.update({region});
+
 const DEFAULT_CONFIG_FILE = '/etc/fswatcher';
+const SENTRY_DSN = 'https://dc50f728527148fbbc24e75bfb400bfe:204d3ae41d1849a5ba6fafcac79b00e9@logger.fastspring.com/11';
 
 // Sentry support
 const raven = require('raven');
-raven.on('logged', function () {
-  process.stderr.write(`Logged error to sentry`);
+raven.config(SENTRY_DSN).install((success, err) => {
+  process.stderr.write(err);
+  if (!success) {
+    process.stderr.write(`Failed connecting to Sentry!\n`);
+  }
 });
-raven.config('https://dc50f728527148fbbc24e75bfb400bfe:204d3ae41d1849a5ba6fafcac79b00e9@logger.fastspring.com/11').install();
 
 raven.context(function() {
   // Set context
@@ -27,11 +32,16 @@ raven.context(function() {
   program
     .version('1.0.0')
     .option('-c, --config [file]', `Configuration file (defaults to ${DEFAULT_CONFIG_FILE})`)
+    .option('-v, --verbose', `Turn on verbose mode`)
     // .usage('[options]')
     .parse(process.argv);
 
   // Configuration
   const CONFIG_FILE = program.config || DEFAULT_CONFIG_FILE;
+
+  if (program.verbose) {
+    process.stdout.write(`Using config file: ${CONFIG_FILE}\n`);
+  }
 
   // Sanity checks
   if (!fs.existsSync(CONFIG_FILE)) {
@@ -40,9 +50,9 @@ raven.context(function() {
 
   let config;
   try {
-    config = require(CONFIG_FILE);
+    config = JSON.parse(fs.readFileSync(CONFIG_FILE));
   } catch (e) {
-    process.stderr.write(`Failed reading configuration file: ${e.name}, ${e.message}\n`);
+    process.stderr.write(`Failed reading configuration file\n${e.name}: ${e.message}\n`);
     process.exit(1);
   }
 
@@ -52,11 +62,17 @@ raven.context(function() {
 
   const directories = config.watches.filter((dir) => {
     if (!fs.existsSync(dir)) {
-      process.stderr.write(`${dir} does not exist! Ignoring...\n`);
-      return true;
+      if (program.verbose) {
+        process.stderr.write(`Ignoring non-existent directory: ${dir}\n`);
+      }
+      return false;
     }
     return true;
   });
+
+  if (directories.length === 0) {
+    throw new Error('No watchable items found');
+  }
 
   // Watchers
   const chokidarConfig = {
@@ -83,16 +99,17 @@ raven.context(function() {
     .on('unlinkDir', path => sendAlert(path, 'directory removed'))
     .on('error', error => sendError(`Watcher error: ${error}`))
     .on('ready', function () {
-      process.stdout.write('Initial scan complete, watching for file changes...\n');
+      if (program.verbose) {
+        process.stdout.write('Initial scan complete, watching for file changes...\n');
+      }
     });
 
   const cloudwatch = new AWS.CloudWatchEvents({apiVersion: '2015-10-07'});
   const sendAlert = raven.wrap((path, event) => {
-    process.stdout.write(`${path} was ${event}\n`);
-    const detail = {
-      path: path,
-      event: event
-    };
+    if (program.verbose) {
+      process.stdout.write(`Sending alert for event: ${event}, with path: ${path}\n`);
+    }
+    const detail = {path, event};
     const params = {
       Entries: [{
         Detail: JSON.stringify(detail),
@@ -103,8 +120,12 @@ raven.context(function() {
     };
     cloudwatch.putEvents(params, (err, data) => {
       if (err) sendError('Failed sending to CloudWatch', {error: err, stack: err.stack});
-      else {process.stdout.write(`Successfully sent ${JSON.stringify(detail)} to CloudWatch\n`);
-      process.stdout.write(`Sent ${JSON.stringify(params)}\n`);}
+      else {
+        if (program.verbose) {
+          process.stdout.write(`Successfully sent ${JSON.stringify(detail)} to CloudWatch\n`);
+          process.stdout.write(`Specifically, sent ${JSON.stringify(params)}\n`);
+        }
+      }
     });
   });
 
@@ -113,14 +134,16 @@ raven.context(function() {
       level: 'error'
     };
     if (extras) {
-      config.extras = extras;
+      config.extra = extras;
     }
     raven.captureException(new Error(msg), config);
-    process.stderr.write(`Error: ${msg}, extras: ${extras}\n`);
+    process.stderr.write(`Error: ${msg}, extras: ${JSON.stringify(extras)}\n`);
   }
 
   process.on('SIGTERM', raven.wrap(() => {
-    if (watcher) watcher.close();
+    if (watcher) {
+      watcher.close();
+    }
     process.exit(0);
   }));
 });

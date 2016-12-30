@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "./node_modules/nexe/bin/nexe -i index.js -o fswatcher -t $TMPDIR/nexe",
-    "run": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "run": "node index.js"
   },
   "author": "Jason Young <jyoung@fastspring.com>",
   "license": "ISC",
