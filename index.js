@@ -8,7 +8,8 @@ const region = process.env.PROD ? 'us-east-1' : 'us-west-2';
 AWS.config.update({region});
 
 const DEFAULT_CONFIG_FILE = '/etc/fswatcher';
-const SENTRY_DSN = 'https://dc50f728527148fbbc24e75bfb400bfe:204d3ae41d1849a5ba6fafcac79b00e9@logger.fastspring.com/11';
+const SENTRY_DSN = process.env.PROD ? 'https://dc50f728527148fbbc24e75bfb400bfe:204d3ae41d1849a5ba6fafcac79b00e9@logger.fastspring.com/11'
+  : 'https://088838620ac746feb140d49007e0d720:3c7652fb2e2745bfafd21402d2f937f3@qa-logger.fastspring.com/12';
 
 // Sentry support
 const raven = require('raven');
