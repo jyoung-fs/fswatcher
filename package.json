@@ -12,7 +12,7 @@
     "aws-sdk": "^2.7.20",
     "chokidar": "^1.6.1",
     "commander": "^2.9.0",
-    "raven": "git+ssh://git@github.com/jyoung-fs/raven-node.git"
+    "raven": "./raven-node"
   },
   "devDependencies": {
     "grunt": "^1.0.1",

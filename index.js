@@ -100,31 +100,29 @@ function run() {
       }
     });
 
-  const cloudwatch = new AWS.CloudWatchEvents({apiVersion: '2015-10-07'});
+  const sns = new AWS.SNS({apiVersion: '2010-03-31'});
+  const topic = `arn:aws:sns:${region}:651958565740:AMI-File-Changed`;
   const sendAlert = raven.wrap((path, event) => {
     if (program.verbose) {
       process.stdout.write(`Sending alert for event: ${event}, with path: ${path}\n`);
     }
-    const detail = {path, event};
+    const message = `${event}: ${path} (${process.env.SERVER_BUILD})`;
     const params = {
-      Entries: [{
-        Detail: JSON.stringify(detail),
-        DetailType: `Path ${path}, Event ${event}`,
-        Resources: [],
-        Source: 'fswatcher'
-      }]
+      Message: message,
+      Subject: 'AMI File Changed!',
+      TopicArn: topic
     };
-    cloudwatch.putEvents(params, (err, data) => {
-      if (err) sendError('Failed sending to CloudWatch', {error: err, stack: err.stack});
+    sns.publish(params, (err, data) => {
+      if (err) sendError(`Failed publishing SNS topic`, {error: err, topic: topic, message: message});
       else if (program.verbose) {
-        process.stdout.write(`Successfully sent ${JSON.stringify(detail)} to CloudWatch\n`);
+        process.stdout.write(`Successfully published '${message}' to '${topic}': ${JSON.stringify(data)}\n`);
       }
     });
   });
 
   function shutdown() {
     if (program.verbose) {
-      process.stdout.write('Caught signal, shutting down...');
+      process.stdout.write('Caught signal, shutting down...\n');
     }
     if (watcher) {
       watcher.close();
